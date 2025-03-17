@@ -4,11 +4,11 @@ from sqlalchemy.ext.declarative import declarative_base
 
 class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
-    ODBC_DRIVER: str = "ODBC Driver 17 for SQL Server"  
+    ODBC_DRIVER: str = "ODBC Driver 18 for SQL Server"
 
-    DB_PROC: str = f"mssql+aioodbc://api.fc:H1JJ!ok2Qz8I@10.112.0.126/PBS_CONDE_DADOS?driver={ODBC_DRIVER}"
-    DB_BARRA: str = f"mssql+aioodbc://api.fc:H1JJ!ok2Qz8I@10.112.0.125/CONDE_BARRAMENTO?driver={ODBC_DRIVER}"
-    DB_SENIOR: str = f"mssql+aioodbc://api.fc:H1JJ!ok2Qz8I@10.112.0.124/SAPIENS?driver={ODBC_DRIVER}"
+    DB_PROC: str = f"mssql+aioodbc://api.fc:H1JJ!ok2Qz8I@10.112.0.126/PBS_CONDE_DADOS?driver={ODBC_DRIVER}&TrustServerCertificate=yes"
+    DB_BARRA: str = f"mssql+aioodbc://api.fc:H1JJ!ok2Qz8I@10.112.0.125/CONDE_BARRAMENTO?driver={ODBC_DRIVER}&TrustServerCertificate=yes"
+    DB_SENIOR: str = f"mssql+aioodbc://api.fc:H1JJ!ok2Qz8I@10.112.0.124/SAPIENS?driver={ODBC_DRIVER}&TrustServerCertificate=yes"
 
     DBBaseModel: ClassVar = declarative_base()
     
