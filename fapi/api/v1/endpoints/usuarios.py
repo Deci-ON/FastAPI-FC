@@ -5,7 +5,7 @@ from sqlalchemy.future import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.usuario_model import UsuarioModel
-from schemas.usuario_schema import UsuarioSchemaBase, UsuarioSchemaCreate, UsuarioSchemaUpdate
+from schemas.usuario_schema import UsuarioSchemaBase, UsuarioSchemaCreate, UsuarioSchemaUpdate, CredenciaisAdmin
 from core.deps import get_session_barra, get_current_admin_user
 from core.security import gerar_hash_senha
 from core.auth import autenticar, criar_token_acesso
@@ -39,11 +39,10 @@ async def login(
 @router.post('/admin/signup', status_code=status.HTTP_201_CREATED, response_model=UsuarioSchemaBase)
 async def post_usuario(
     usuario: UsuarioSchemaCreate, 
-    login_admin: str, 
-    senha_admin: str, 
+    credenciais: CredenciaisAdmin,
     db: AsyncSession = Depends(get_session_barra)
 ):
-    admin_user = await get_current_admin_user(login_admin, senha_admin, db)
+    admin_user = await get_current_admin_user(credenciais.login_admin, credenciais.senha_admin, db)
 
     if not admin_user:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado. Apenas administradores podem criar usuários.")
@@ -68,62 +67,42 @@ async def post_usuario(
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Já existe um usuário com este email.")
 
-@router.post('/signup', status_code=status.HTTP_201_CREATED, response_model=UsuarioSchemaBase)
-async def post_usuario(usuario: UsuarioSchemaCreate, db: AsyncSession = Depends(get_session_barra)):
-    novo_usuario = UsuarioModel(
-        LOGIN=usuario.LOGIN,
-        SENHA=gerar_hash_senha(usuario.SENHA),
-        DESCRICAO=usuario.DESCRICAO,
-        EMAIL=usuario.EMAIL,
-        ADMIN=usuario.ADMIN,
-        ATIVO=usuario.ATIVO
-    )
-
-    try:
-        db.add(novo_usuario)
-        await db.commit()  
-        await db.refresh(novo_usuario)
-
-        return UsuarioSchemaBase.model_validate(novo_usuario.__dict__) 
-
-    except IntegrityError:
-        await db.rollback()
-        raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Já existe um usuário com este email.")
 
 @router.put('/admin/usuario/{usuario_id}', response_model=UsuarioSchemaBase, status_code=status.HTTP_202_ACCEPTED)
-async def update_usuario(usuario_id: int, usuario: UsuarioSchemaUpdate,
-    login_admin: str, 
-    senha_admin: str,  
-    db: AsyncSession = Depends(get_session_barra)):
-    
-    admin_user = await get_current_admin_user(login_admin, senha_admin, db)
+async def update_usuario(
+    usuario_id: int,
+    usuario: UsuarioSchemaUpdate,
+    credenciais: CredenciaisAdmin,
+    db: AsyncSession = Depends(get_session_barra)
+):
+    admin_user = await get_current_admin_user(credenciais.login_admin, credenciais.senha_admin, db)
     if not admin_user:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado. Apenas administradores podem criar usuários.")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acesso negado. Apenas administradores podem modificar usuários.")
+
     try:
-        async with db.begin():
-            result = await db.execute(select(UsuarioModel).filter(UsuarioModel.ID == usuario_id))
-            usuario_up = result.scalars().unique().one_or_none()
+        result = await db.execute(select(UsuarioModel).filter(UsuarioModel.ID == usuario_id))
+        usuario_up = result.scalars().one_or_none()
 
-            if not usuario_up:
-                raise HTTPException(detail='Usuário não encontrado.', status_code=status.HTTP_404_NOT_FOUND)
+        if not usuario_up:
+            raise HTTPException(detail='Usuário não encontrado.', status_code=status.HTTP_404_NOT_FOUND)
 
-            if usuario.LOGIN:
-                usuario_up.LOGIN = usuario.LOGIN
-            if usuario.SENHA:
-                usuario_up.SENHA = gerar_hash_senha(usuario.SENHA)
-            if usuario.DESCRICAO:
-                usuario_up.DESCRICAO = usuario.DESCRICAO
-            if usuario.EMAIL:
-                usuario_up.EMAIL = usuario.EMAIL
-            if usuario.ADMIN is not None:
-                usuario_up.ADMIN = usuario.ADMIN
-            if usuario.ATIVO is not None:
-                usuario_up.ATIVO = usuario.ATIVO
+        if usuario.login:
+            usuario_up.LOGIN = usuario.login
+        if usuario.senha and usuario.senha.strip():
+            usuario_up.SENHA = gerar_hash_senha(usuario.senha)
+        if usuario.descricao:
+            usuario_up.DESCRICAO = usuario.descricao
+        if usuario.email:
+            usuario_up.EMAIL = usuario.email
+        if usuario.admin is not None:
+            usuario_up.ADMIN = usuario.admin
+        if usuario.ativo is not None:
+            usuario_up.ATIVO = usuario.ativo
 
-            await db.commit()
-            await db.refresh(usuario_up)
+        await db.commit()
+        await db.refresh(usuario_up)
 
-            return UsuarioSchemaBase.model_validate(usuario_up.__dict__)
+        return UsuarioSchemaBase.model_validate(usuario_up.__dict__)
 
     except IntegrityError:
         await db.rollback()
@@ -131,3 +110,5 @@ async def update_usuario(usuario_id: int, usuario: UsuarioSchemaUpdate,
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Erro interno: {str(e)}")
+
+
