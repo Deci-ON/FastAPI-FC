@@ -36,7 +36,7 @@ async def login(
     finally:
         await db.close() 
         
-@router.post('/admin/signup', status_code=status.HTTP_201_CREATED, response_model=UsuarioSchemaBase)
+@router.post('/admin/signup', status_code=status.HTTP_201_CREATED, response_model=UsuarioSchemaBase, include_in_schema=False)
 async def post_usuario(
     usuario: UsuarioSchemaCreate, 
     credenciais: CredenciaisAdmin,
@@ -68,7 +68,7 @@ async def post_usuario(
         raise HTTPException(status_code=status.HTTP_406_NOT_ACCEPTABLE, detail="Já existe um usuário com este email.")
 
 
-@router.put('/admin/usuario/{usuario_id}', response_model=UsuarioSchemaBase, status_code=status.HTTP_202_ACCEPTED)
+@router.put('/admin/usuario/{usuario_id}', response_model=UsuarioSchemaBase, status_code=status.HTTP_202_ACCEPTED, include_in_schema=False)
 async def update_usuario(
     usuario_id: int,
     usuario: UsuarioSchemaUpdate,
